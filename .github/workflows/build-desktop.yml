@@ -1,0 +1,70 @@
+name: Build & Release Desktop Apps (Windows .exe, Mac .dmg/.app, Linux)
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-desktop:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Web Application
+        run: npm run build
+
+      - name: Build Desktop Executables with Electron Builder
+        run: npx --yes electron-builder --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: SQL-Quest-Arena-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.deb
+
+      - name: Publish GitHub Release (on tag or manual trigger)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.deb
+          name: SQL Quest Arena ${{ github.ref_name }} (par OROMASIS BANDUENGA)
+          body: |
+            ## 🎮 SQL Quest Arena - Fichiers d'installation Desktop
+
+            Conçu et développé par **OROMASIS BANDUENGA**
+            - **Windows** : Télécharger le fichier `.exe`
+            - **macOS** : Télécharger le fichier `.dmg` ou `.zip`
+            - **Linux** : Télécharger le fichier `.AppImage` ou `.deb`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
